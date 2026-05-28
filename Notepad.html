@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Notepad</title>
+  <!-- Made with Super Emslash BASIC -->
+  <!-- Commands used: LET, GOTO, GET, CLS, COLOR, LINE, TEXT, IF -->
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #000000; min-height: 100vh; }
+    #game-canvas {
+      border: 7px outset #ffffff;
+      background: linear-gradient(to top, #bebebe, #ffffff);
+      box-shadow: 2px 2px 5px #000;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+
+<div style="padding:10px;display:flex;flex-direction:column;gap:6px;">
+  <canvas id="game-canvas" width="300" height="300"></canvas>
+</div>
+
+<script>
+/**
+ * emslash.js — Super Emslash BASIC Runtime (inlined)
+ */
+class EmslashVM {
+  constructor(options = {}) {
+    this.canvas = options.canvas || null;
+    this.ctx    = this.canvas ? this.canvas.getContext('2d') : null;
+    this.camX   = 0;
+    this.camY   = 0;
+    this.drawColor = { r: 57, g: 255, b: 20 };
+    this.fontSize  = 12;
+
+    this.MAX_DIGITS   = 7;
+    this.displayState = Array(this.MAX_DIGITS).fill(null).map(() => Array(16).fill(0));
+    this.onDisplayChange = options.onDisplayChange || null;
+
+    this.segmentNames = ['a1','a2','b','c','d1','d2','e','f','g1','g2','h','i','j','k','l','m'];
+    this.segmentMap = {
+      '0':[1,1,1,1,1,1,1,1,0,0,0,0,0,1,1,0],'1':[0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0],
+      '2':[1,1,1,0,1,1,1,0,1,1,0,0,0,0,0,0],'3':[1,1,1,1,1,1,0,0,0,1,0,0,0,0,0,0],
+      '4':[0,0,1,1,0,0,0,1,1,1,0,0,0,0,0,0],'5':[1,1,0,1,1,1,0,1,1,1,0,0,0,0,0,0],
+      '6':[1,1,0,1,1,1,1,1,1,1,0,0,0,0,0,0],'7':[1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0],
+      '8':[1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0],'9':[1,1,1,1,1,1,0,1,1,1,0,0,0,0,0,0],
+      'A':[1,1,1,1,0,0,1,1,1,1,0,0,0,0,0,0],'B':[1,1,1,1,1,1,0,0,0,1,1,0,0,0,0,1],
+      'C':[1,1,0,0,1,1,1,1,0,0,0,0,0,0,0,0],'D':[1,1,1,1,1,1,0,0,0,0,1,0,0,0,0,1],
+      'E':[1,1,0,0,1,1,1,1,1,0,0,0,0,0,0,0],'F':[1,1,0,0,0,0,1,1,1,0,0,0,0,0,0,0],
+      'G':[1,1,0,1,1,1,1,1,0,1,0,0,0,0,0,0],'H':[0,0,1,1,0,0,1,1,1,1,0,0,0,0,0,0],
+      'I':[1,1,0,0,1,1,0,0,0,0,1,0,0,0,0,1],'J':[0,0,1,1,1,1,1,0,0,0,0,0,0,0,0,0],
+      'K':[0,0,0,0,0,0,1,1,1,0,0,0,1,1,0,0],'L':[0,0,0,0,1,1,1,1,0,0,0,0,0,0,0,0],
+      'M':[0,0,1,1,0,0,1,1,0,0,0,1,1,0,0,0],'N':[0,0,1,1,0,0,1,1,0,0,0,1,0,1,0,0],
+      'O':[1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0],'P':[1,1,1,0,0,0,1,1,1,1,0,0,0,0,0,0],
+      'Q':[1,1,1,1,1,1,1,1,0,0,0,0,0,1,0,0],'R':[1,1,1,0,0,0,1,1,1,1,0,0,0,1,0,0],
+      'S':[1,1,0,1,1,1,0,1,1,1,0,0,0,0,0,0],'T':[1,1,0,0,0,0,0,0,0,0,1,0,0,0,0,1],
+      'U':[0,0,1,1,1,1,1,1,0,0,0,0,0,0,0,0],'V':[0,0,0,0,0,0,1,1,0,0,0,0,0,0,1,0],
+      'W':[0,0,1,1,1,1,1,1,0,0,0,0,0,0,0,0],'X':[0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,0],
+      'Y':[0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,1],'Z':[1,1,0,0,1,1,0,0,0,0,0,0,1,0,1,0],
+      ' ':[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+      '?':[1,1,1,0,0,1,0,0,0,1,0,0,0,0,0,1],
+      '*':[0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1],
+      '-':[0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0],
+    };
+
+    this.basicProgram = {};
+    this.variables    = {};
+    this.gameData     = {};
+    this.isRunning    = false;
+    this.stopRequested = false;
+    this.lastKeyPress  = null;
+    this._inputResolve = null;
+    this._waitingForInput = false;
+    this._inputBuffer  = '';
+    this.sprites  = {};
+    this.tilemap  = null;
+    this.tileW    = 8;
+    this.tileH    = 8;
+
+    // Logging hook
+    this.onLog = options.onLog || null;
+  }
+
+  load(src) {
+    this.basicProgram = {};
+    let autoN = 10;
+    for (const raw of src.split(/\r?\n/)) {
+      const line = raw.trim();
+      if (!line) continue;
+      const m = line.match(/^(\d+)\s*(.*)/);
+      if (m) { this.basicProgram[parseInt(m[1])] = m[2]; }
+      else   { this.basicProgram[autoN] = line; autoN += 10; }
+    }
+  }
+
+  addLine(num, code) {
+    if (code.trim() === '') delete this.basicProgram[num];
+    else this.basicProgram[num] = code;
+  }
+
+  keyDown(key) {
+    this.lastKeyPress = String(key);
+    if (this._waitingForInput) {
+      if (!isNaN(key) && key !== ' ') {
+        this._inputBuffer += String(key);
+        this._updateDisplay(this._inputBuffer);
+      } else if (key === '=' || key === 'Enter') {
+        const v = this._inputBuffer;
+        this._inputBuffer = '';
+        this._waitingForInput = false;
+        if (this._inputResolve) this._inputResolve(v);
+      }
+    }
+  }
+
+  stop() { this.stopRequested = true; }
+
+  async run() {
+    if (this.isRunning) return;
+    this.isRunning     = true;
+    this.stopRequested = false;
+    this.variables     = {};
+
+    const sortedLines = Object.keys(this.basicProgram).map(Number).sort((a,b)=>a-b);
+    let pc = 0;
+
+    while (pc < sortedLines.length && !this.stopRequested) {
+      const lineNum = sortedLines[pc];
+      const raw     = this.basicProgram[lineNum];
+      if (!raw) { pc++; continue; }
+      try {
+        const result = await this._execLine(raw.trim());
+        if (result && result.goto !== undefined) {
+          const idx = sortedLines.indexOf(result.goto);
+          if (idx !== -1) { pc = idx; continue; }
+          else { this._log(`LINE ${result.goto} NOT FOUND`, 'err'); break; }
+        }
+      } catch(e) {
+        this._log(`ERROR LINE ${lineNum}: ${e.message}`, 'err');
+        break;
+      }
+      pc++;
+      await this._tick(1);
+    }
+
+    this.isRunning = false;
+    if (this.stopRequested) { this._updateDisplay('BREAK'); this._log('STOPPED', 'info'); }
+    else this._log('PROGRAM END', 'ok');
+    this.stopRequested = false;
+  }
+
+  _log(msg, type='ok') {
+    if (this.onLog) this.onLog(msg, type);
+  }
+
+  async _execLine(line) {
+    const up = line.toUpperCase().trim();
+
+    if (up.startsWith('PRINT ')) {
+      const val = this._eval(line.substring(6).trim());
+      this._updateDisplay(String(val));
+      this._log(String(val), 'out');
+      await this._tick(10);
+
+    } else if (up.startsWith('IF ')) {
+      const thenIdx = up.indexOf(' THEN ');
+      if (thenIdx !== -1) {
+        const cond = line.substring(3, thenIdx).trim();
+        const cmd  = line.substring(thenIdx + 6).trim();
+        if (this._evalCond(cond)) return await this._execLine(cmd);
+      }
+
+    } else if (up.startsWith('SEG ')) {
+      const parts = line.substring(4).trim().split(/\s+/);
+      if (parts.length >= 2) this._manualSeg(this._eval(parts[0]), this._eval(parts[1]));
+      await this._tick(5);
+
+    } else if (up.startsWith('LET ')) {
+      const asgn  = line.substring(4).trim();
+      const eqIdx = asgn.indexOf('=');
+      if (eqIdx !== -1) {
+        const varName = asgn.substring(0, eqIdx).trim().toUpperCase();
+        const expr    = asgn.substring(eqIdx + 1).trim();
+        this.variables[varName] = this._eval(expr);
+      }
+
+    } else if (up.startsWith('GOTO ')) {
+      return { goto: parseInt(this._eval(line.substring(5).trim())) };
+
+    } else if (up.startsWith('INPUT ')) {
+      const varName = line.substring(6).trim().toUpperCase();
+      this._inputBuffer = '';
+      this._waitingForInput = true;
+      this._updateDisplay('?');
+      this._log('WAITING FOR INPUT (press Enter to submit)', 'info');
+      const val = await new Promise(res => { this._inputResolve = res; });
+      this.variables[varName] = isNaN(val) ? val : parseFloat(val);
+
+    } else if (up.startsWith('GET ')) {
+      const varName = line.substring(4).trim().toUpperCase();
+      this.variables[varName] = this.lastKeyPress || '';
+      this.lastKeyPress = null;
+
+    } else if (up.startsWith('SLEEP ')) {
+      const ms = parseInt(this._eval(line.substring(6).trim())) || 0;
+      await this._tick(ms);
+
+    } else if (up.startsWith('WRITE ')) {
+      const parts = line.substring(6).trim().split(/\s+/);
+      if (parts.length >= 2) this.gameData[this._eval(parts[0])] = this._eval(parts[1]);
+
+    } else if (up.startsWith('RECALL ')) {
+      const sides = line.substring(7).split('=');
+      if (sides.length === 2) {
+        const varName = sides[0].trim().toUpperCase();
+        const key     = this._eval(sides[1].trim());
+        this.variables[varName] = this.gameData[key] !== undefined ? this.gameData[key] : 0;
+      }
+
+    } else if (up.startsWith('CANVAS ')) {
+      const [w, h] = this._parseNums(line, 7, 2);
+      if (this.canvas) { this.canvas.width = w; this.canvas.height = h; }
+
+    } else if (up === 'CLS') {
+      if (this.ctx) this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+    } else if (up.startsWith('COLOR ')) {
+      const [r, g, b] = this._parseNums(line, 6, 3);
+      this.drawColor = { r: r|0, g: g|0, b: b|0 };
+
+    } else if (up.startsWith('PIXEL ')) {
+      const [x, y] = this._parseNums(line, 6, 2);
+      if (this.ctx) { this.ctx.fillStyle = this._cssColor(); this.ctx.fillRect(x-this.camX, y-this.camY, 1, 1); }
+
+    } else if (up.startsWith('LINE ')) {
+      const [x1,y1,x2,y2] = this._parseNums(line, 5, 4);
+      if (this.ctx) {
+        this.ctx.strokeStyle = this._cssColor(); this.ctx.lineWidth = 1;
+        this.ctx.beginPath(); this.ctx.moveTo(x1-this.camX, y1-this.camY);
+        this.ctx.lineTo(x2-this.camX, y2-this.camY); this.ctx.stroke();
+      }
+
+    } else if (up.startsWith('RECT ')) {
+      const [x,y,w,h] = this._parseNums(line, 5, 4);
+      if (this.ctx) { this.ctx.fillStyle = this._cssColor(); this.ctx.fillRect(x-this.camX, y-this.camY, w, h); }
+
+    } else if (up.startsWith('CIRCLE ')) {
+      const [x,y,r] = this._parseNums(line, 7, 3);
+      if (this.ctx) {
+        this.ctx.fillStyle = this._cssColor();
+        this.ctx.beginPath(); this.ctx.arc(x-this.camX, y-this.camY, r, 0, Math.PI*2); this.ctx.fill();
+      }
+
+    } else if (up.startsWith('TEXT ')) {
+      const m = line.match(/^TEXT\s+(\S+)\s+(\S+)\s+(.*)/i);
+      if (m && this.ctx) {
+        const x = parseFloat(this._eval(m[1])), y = parseFloat(this._eval(m[2]));
+        const str = String(this._eval(m[3]));
+        this.ctx.fillStyle = this._cssColor();
+        this.ctx.font = `${this.fontSize}px monospace`;
+        this.ctx.fillText(str, x-this.camX, y-this.camY);
+      }
+
+    } else if (up.startsWith('FONT ')) {
+      this.fontSize = parseInt(this._eval(line.substring(5).trim())) || 12;
+
+    } else if (up.startsWith('CAMERA ')) {
+      const [x,y] = this._parseNums(line, 7, 2);
+      this.camX = x; this.camY = y;
+
+    } else if (up.startsWith('SPRITE ')) {
+      const m = line.match(/^SPRITE\s+(\S+)\s+(.*)/i);
+      if (m) {
+        const id = parseInt(this._eval(m[1]));
+        const def = String(this._eval(m[2]));
+        this.sprites[id] = { rows: this._parseSpriteDef(def), x:0, y:0, scale:1, hidden:false, color:{...this.drawColor} };
+      }
+
+    } else if (up.startsWith('SPUT ')) {
+      const [id,x,y,scale] = this._parseNums(line, 5, 4);
+      const sp = this.sprites[id|0];
+      if (sp) { sp.x=x; sp.y=y; sp.scale=scale||1; sp.color={...this.drawColor}; if(!sp.hidden) this._drawSprite(sp); }
+
+    } else if (up.startsWith('SMOVE ')) {
+      const [id,dx,dy] = this._parseNums(line, 6, 3);
+      const sp = this.sprites[id|0];
+      if (sp) { sp.x+=dx; sp.y+=dy; if(!sp.hidden) this._drawSprite(sp); }
+
+    } else if (up.startsWith('SPOS ')) {
+      const id = parseInt(this._eval(line.substring(5).trim()));
+      const sp = this.sprites[id];
+      if (sp) { this.variables['SX']=sp.x; this.variables['SY']=sp.y; }
+
+    } else if (up.startsWith('SCLEAR ')) {
+      const id = parseInt(this._eval(line.substring(7).trim()));
+      const sp = this.sprites[id];
+      if (sp && this.ctx) {
+        const h = sp.rows.length * sp.scale;
+        const w = (sp.rows[0]?sp.rows[0].length:0) * sp.scale;
+        this.ctx.clearRect(sp.x-this.camX, sp.y-this.camY, w, h);
+      }
+
+    } else if (up.startsWith('SHIDE ')) {
+      const id = parseInt(this._eval(line.substring(6).trim()));
+      if (this.sprites[id]) this.sprites[id].hidden = true;
+
+    } else if (up.startsWith('SSHOW ')) {
+      const id = parseInt(this._eval(line.substring(6).trim()));
+      const sp = this.sprites[id];
+      if (sp) { sp.hidden=false; this._drawSprite(sp); }
+
+    } else if (up.startsWith('COLLIDE ')) {
+      const m = line.match(/^COLLIDE\s+(\S+)\s+(\S+)\s+(\S+)/i);
+      if (m) {
+        const id1=parseInt(this._eval(m[1])), id2=parseInt(this._eval(m[2]));
+        this.variables[m[3].toUpperCase()] = this._checkCollision(id1,id2) ? '1' : '0';
+      }
+
+    } else if (up.startsWith('TILE ')) {
+      const m = line.match(/^TILE\s+(.*?)\s+(\d+)\s+(\d+)/i);
+      if (m) {
+        const def = String(this._eval(m[1]));
+        this.tileW = parseInt(m[2]); this.tileH = parseInt(m[3]);
+        this.tilemap = def.split('|').map(row => row.split(','));
+      }
+
+    } else if (up.startsWith('TPUT ')) {
+      const [tx,ty] = this._parseNums(line, 5, 2);
+      if (this.tilemap && this.ctx) {
+        const row = this.tilemap[ty|0];
+        if (row) { const td=row[tx|0]; if(td) this._drawTile(td,(tx*this.tileW)-this.camX,(ty*this.tileH)-this.camY); }
+      }
+    }
+    return null;
+  }
+
+  _eval(expr) {
+    if (expr===undefined||expr===null) return '';
+    let s = expr.toString().trim();
+    if (s.startsWith('"') && s.endsWith('"')) return s.substring(1, s.length-1);
+    if (s.includes(';')) return s.split(';').map(p=>this._eval(p.trim())).join('');
+    if (/^[A-Z][A-Z0-9]*$/i.test(s)) { const v=this.variables[s.toUpperCase()]; return v!==undefined?v:0; }
+    let sanitized = s.replace(/\b([A-Z][A-Z0-9]*)\b/gi, m => { const v=this.variables[m.toUpperCase()]; return v!==undefined?v:0; });
+    try { if (/^[\d.+\-*/%() ]+$/.test(sanitized)) return new Function(`return ${sanitized}`)(); return sanitized; }
+    catch { return sanitized; }
+  }
+
+  _evalCond(cond) {
+    const ops = [['!=','!='],['>='],['>'],[' <='],['<'],['=','==']];
+    for (const [sym, jsOp] of ops) {
+      const s = sym.trim();
+      if (cond.includes(s)) {
+        const idx = cond.indexOf(s);
+        const l = this._eval(cond.substring(0, idx).trim());
+        const r = this._eval(cond.substring(idx + s.length).trim());
+        const op = jsOp || s;
+        const ln=parseFloat(l), rn=parseFloat(r);
+        if (!isNaN(ln)&&!isNaN(rn)) {
+          if(op==='==') return ln===rn; if(op==='!=') return ln!==rn;
+          if(op==='>=') return ln>=rn;  if(op==='>') return ln>rn;
+          if(op==='<=') return ln<=rn;  return ln<rn;
+        }
+        if(op==='==') return String(l)===String(r);
+        if(op==='!=') return String(l)!==String(r);
+        return false;
+      }
+    }
+    return false;
+  }
+
+  _updateDisplay(str) {
+    this.displayState = Array(this.MAX_DIGITS).fill(null).map(()=>this.segmentMap[' '].slice());
+    const chars = String(str).toUpperCase().slice(0, this.MAX_DIGITS);
+    for (let i=0;i<chars.length;i++) this.displayState[i]=(this.segmentMap[chars[i]]||this.segmentMap[' ']).slice();
+    if (this.onDisplayChange) this.onDisplayChange(this.displayState);
+  }
+
+  _manualSeg(idsStr, digitIndex) {
+    const idx = Math.floor(parseFloat(digitIndex))-1;
+    if (idx<0||idx>=this.MAX_DIGITS) return;
+    const ids = String(idsStr).toLowerCase().split(/[,\s]+/).map(s=>s.trim());
+    this.displayState[idx] = this.segmentNames.map(n=>ids.includes(n)?1:0);
+    if (this.onDisplayChange) this.onDisplayChange(this.displayState);
+  }
+
+  renderLCD(ctx, x=0, y=0, digitW=41, digitH=46) {
+    const PAD=3, SW=digitW-PAD*2, SH=(digitH-PAD*3)/2;
+    const ON='#39ff14', OFF='#0d1a0d';
+    for (let d=0;d<this.MAX_DIGITS;d++) {
+      const dx=x+d*(digitW+3);
+      const st=this.displayState[d];
+
+      // Rectangular segments
+      const segs={
+        a1:[dx+PAD,y,SW/2-1,PAD], a2:[dx+SW/2+PAD+1,y,SW/2-1,PAD],
+        b:[dx+digitW-PAD,y+PAD,PAD,SH], c:[dx+digitW-PAD,y+SH+PAD*2,PAD,SH],
+        d1:[dx+PAD,y+digitH-PAD,SW/2-1,PAD], d2:[dx+SW/2+PAD+1,y+digitH-PAD,SW/2-1,PAD],
+        e:[dx,y+SH+PAD*2,PAD,SH], f:[dx,y+PAD,PAD,SH],
+        g1:[dx+PAD,y+SH+PAD,SW/2-1,PAD], g2:[dx+SW/2+PAD+1,y+SH+PAD,SW/2-1,PAD],
+        h:[dx+digitW/2,y+PAD,PAD,SH], m:[dx+digitW/2,y+SH+PAD*2,PAD,SH],
+      };
+      for (const [name,[sx,sy,sw,sh]] of Object.entries(segs)) {
+        const i=this.segmentNames.indexOf(name);
+        ctx.fillStyle=(i!==-1&&st[i])?ON:OFF;
+        ctx.fillRect(sx,sy,sw,sh);
+      }
+
+      // Diagonal segments (i, j, l, k) drawn as lines
+      const mx=dx+digitW/2, my=y+digitH/2;
+      const diags=[
+        ['i', dx+PAD,        y+PAD,        mx, my],
+        ['j', dx+digitW-PAD, y+PAD,        mx, my],
+        ['l', dx+PAD,        y+digitH-PAD, mx, my],
+        ['k', dx+digitW-PAD, y+digitH-PAD, mx, my],
+      ];
+      ctx.lineWidth=PAD; ctx.lineCap='round';
+      for (const [name,x1,y1,x2,y2] of diags) {
+        const si=this.segmentNames.indexOf(name);
+        ctx.strokeStyle=(si!==-1&&st[si])?ON:OFF;
+        ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+      }
+    }
+  }
+
+  _parseSpriteDef(def) { return def.split(',').map(row=>row.split('').map(ch=>ch==='#')); }
+
+  _drawSprite(sp) {
+    if (!this.ctx||!sp.rows) return;
+    const {r,g,b}=sp.color;
+    this.ctx.fillStyle=`rgb(${r},${g},${b})`;
+    const sc=sp.scale||1;
+    sp.rows.forEach((row,ri)=>row.forEach((on,ci)=>{ if(on) this.ctx.fillRect(sp.x+ci*sc-this.camX,sp.y+ri*sc-this.camY,sc,sc); }));
+  }
+
+  _checkCollision(id1,id2) {
+    const a=this.sprites[id1],b=this.sprites[id2];
+    if(!a||!b) return false;
+    const aw=(a.rows[0]?.length||0)*a.scale, ah=a.rows.length*a.scale;
+    const bw=(b.rows[0]?.length||0)*b.scale, bh=b.rows.length*b.scale;
+    return !(a.x+aw<b.x||b.x+bw<a.x||a.y+ah<b.y||b.y+bh<a.y);
+  }
+
+  _drawTile(def,px,py) {
+    const rows=this._parseSpriteDef(def);
+    const sx=this.tileW/(rows[0]?.length||1), sy=this.tileH/(rows.length||1);
+    this.ctx.fillStyle=this._cssColor();
+    rows.forEach((row,ri)=>row.forEach((on,ci)=>{ if(on) this.ctx.fillRect(px+ci*sx,py+ri*sy,sx,sy); }));
+  }
+
+  _cssColor() { const {r,g,b}=this.drawColor; return `rgb(${r},${g},${b})`; }
+
+  _parseNums(line, offset, n) {
+    const tokens=line.substring(offset).trim().split(/\s+/);
+    return Array.from({length:n},(_,i)=>parseFloat(this._eval(tokens[i]||'0'))||0);
+  }
+
+  _tick(ms=0) { return new Promise(r=>setTimeout(r,ms)); }
+}
+</script>
+
+<script>
+(function () {
+  var gameCanvas = document.getElementById("game-canvas");
+  var vm = new EmslashVM({
+    canvas: gameCanvas,
+  });
+
+  // Keyboard input
+  document.addEventListener("keydown", function (e) { vm.keyDown(e.key); });
+  gameCanvas.setAttribute("tabindex", "0");
+  gameCanvas.addEventListener("click", function () { gameCanvas.focus(); });
+
+  // Program source
+  var PROGRAM = "10 COLOR 000\n20 LET TX = \"\"\n25 CLS\n30 GET K\n31 LINE 0 25 300 25\n32 LINE 0 50 300 50\n33 LINE 0 75 300 75\n40 LET TX = TX ; K\n45 IF K = \"Backspace\" THEN LET TX = \"\"\n50 TEXT 10 15 TX\n60 GOTO 25";
+  vm.load(PROGRAM);
+
+  vm.run();
+})();
+</script>
+
+</body>
+</html>
