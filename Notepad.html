@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Notepad</title>
   <!-- Made with Super Emslash BASIC -->
-  <!-- Commands used: LET, GOTO, GET, CLS, COLOR, TEXT -->
+  <!-- Commands used: LET, GOTO, GET, CLS, COLOR, LINE, TEXT, IF -->
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { background: #222222; min-height: 100vh; }
@@ -21,7 +21,6 @@
 
 <div style="display:flex;flex-direction:column;align-items:center;min-height:100vh;justify-content:center;gap:6px;">
   <canvas id="game-canvas" width="300" height="300"></canvas>
-  <button id="btnClear" style="font-family:monospace;border:2px outset #c0c0c0;background:#e0e0e0;padding:4px 12px;cursor:pointer;">Clear</button>
   <button id="btnSource" style="font-family:monospace;border:2px outset #c0c0c0;background:#e8e8ff;padding:4px 12px;cursor:pointer;">View Source</button>
 </div>
 
@@ -476,16 +475,12 @@ class EmslashVM {
   gameCanvas.addEventListener("click", function () { gameCanvas.focus(); });
 
   // Program source
-  var PROGRAM = "10 COLOR 000\n20 LET TX = \"\"\n30 GET K\n35 CLS\n40 LET TX = TX ; K\n50 TEXT 10 15 TX\n60 GOTO 30";
+  var PROGRAM = "10 COLOR 000\n20 LET TX = \"\"\n30 GET K\n31 LINE 0 25 300 25\n32 LINE 0 50 300 50\n33 LINE 0 75 300 75\n35 CLS\n40 LET TX = TX ; K\n45 IF K = \"Backspace\" THEN LET TX = \"\"\n50 TEXT 10 15 TX\n60 GOTO 30";
   vm.load(PROGRAM);
 
   vm.run();
-  document.getElementById("btnClear").addEventListener("click", function () {
-    vm.stop();
-    gameCanvas.getContext("2d").clearRect(0, 0, gameCanvas.width, gameCanvas.height);
-  });
   document.getElementById("btnSource").addEventListener("click", function () {
-    var src = "10 COLOR 000\n20 LET TX = \"\"\n30 GET K\n35 CLS\n40 LET TX = TX ; K\n50 TEXT 10 15 TX\n60 GOTO 30";
+    var src = "10 COLOR 000\n20 LET TX = \"\"\n30 GET K\n31 LINE 0 25 300 25\n32 LINE 0 50 300 50\n33 LINE 0 75 300 75\n35 CLS\n40 LET TX = TX ; K\n45 IF K = \"Backspace\" THEN LET TX = \"\"\n50 TEXT 10 15 TX\n60 GOTO 30";
     var w = window.open("", "_blank", "width=620,height=520,resizable=yes");
     w.document.write("<html><head><title>Source</title></head><body>");
     w.document.write("<pre style=\"font-family:monospace;padding:14px;white-space:pre-wrap;\">");
